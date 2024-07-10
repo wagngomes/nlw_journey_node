@@ -5,6 +5,11 @@ import { prisma } from "../lib/prisma";
 import dayjs from "dayjs";
 import { getMailClient } from "../lib/mail";
 import nodemailer from 'nodemailer'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import 'dayjs/locale/pt-br'
+
+dayjs.locale('pt-br')
+dayjs.extend(localizedFormat)
 
 export async function createTrip(app: FastifyInstance) {
     app.withTypeProvider<ZodTypeProvider>().post('/trips', {
@@ -55,6 +60,11 @@ export async function createTrip(app: FastifyInstance) {
             }
         })
 
+        const formattedStartDate = dayjs(starts_at).format('LL')
+        const formattedEndDate = dayjs(ends_at).format('LL')
+
+        const confirmationLink = `http://localhost/3333/trips/${trip.id}/confirm`
+
         const mail = await getMailClient()
 
         const message = await mail.sendMail({
@@ -66,8 +76,21 @@ export async function createTrip(app: FastifyInstance) {
                 name: owner_name,
                 address: owner_email           
             },
-            subject: 'testando envio do email',
-            html: '<p>teste</p>'
+            subject: `Confirme sua viagem para ${destination} em ${formattedStartDate}`,
+            html: `
+
+            <div style="font-family: sans-serif;font-size: 16px;line-height: 1.6;">
+
+            <p>Você solicitou a viagem para <strong>${destination}, Brasil</strong> entre as datas de ${formattedStartDate} até ${formattedEndDate}.</p>
+            <p></p>
+            <P>Para confimar sua viagem clique no link abaixo:</P>
+            <p></p>
+            <p>
+            <a href="${confirmationLink}">Confirmar viagem</a>
+            </p>
+            <p>Caso voc~e não saiba do que se trate, ignore esse email</p>
+            </div>           
+            `.trim()
         })
 
         console.log(nodemailer.getTestMessageUrl(message))
